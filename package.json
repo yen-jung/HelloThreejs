@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "color": "^4.2.3",
+    "three": "^0.145.0"
+  },
+  "devDependencies": {
+    "@babel/traverse": "^7.19.4"
+  }
+}
