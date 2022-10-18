@@ -52,34 +52,19 @@ function onMouseUP(event)
     }
 }
 
-// function onPointerMove(event) {
-//     if(draging & !rotate)
-//     {
-//         _camera.position.x += (firstPointer.x-event.clientX)/3000
-//         _camera.position.z += (firstPointer.y-event.clientY)/3000
-//     }
-//     if(draging & rotate)
-//     {
-//         _camera.quaternion.y -= event.movementX/1000
-//         _camera.quaternion.x -= event.movementY/1000
-//     }
+function onPointerMove(event) {
+    if(draging & !rotate)
+    {
+        _camera.position.x += (firstPointer.x-event.clientX)/3000
+        _camera.position.z += (firstPointer.y-event.clientY)/3000
+    }
+    if(draging & rotate)
+    {
+        _camera.quaternion.y -= event.movementX/1000
+        _camera.quaternion.x -= event.movementY/1000
+    }
     
-//     pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1
-//     pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1
-
-//     raycaster.setFromCamera(pointer,_camera)
-//     let intersects = raycaster.intersectObjects( _scene.children, false )
-//     if ( intersects.length > 0 ) {
-//         if ( INTERSECTED != intersects[0].object & intersects[0].object.name!="axes") {
-//             if ( INTERSECTED ) INTERSECTED.material.emissive.setHex( INTERSECTED.currentHex )
-//             INTERSECTED = intersects[ 0 ].object
-//             INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
-//             INTERSECTED.material.emissive.setHex( 0xfff000 )
-//         }
-//     } else {
-//         if ( INTERSECTED ) INTERSECTED.material.emissive.setHex( INTERSECTED.currentHex )
-//         INTERSECTED = null
-//     }   
-// }
+    
+}
   
-  export {setVariable, onKeyDown, onKeyUp, onWheel, onMouseDown, onMouseUP};
+  export {setVariable, onKeyDown, onKeyUp, onWheel, onMouseDown, onMouseUP,onPointerMove};
