@@ -1,5 +1,5 @@
 {
   "dependencies": {
-    "three": "^0.145.0"
+    "dat.gui": "^0.7.9"
   }
 }

@@ -1,213 +1,153 @@
-
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.121.1/build/three.module.js";
-import * as mouseevent from "./MouseEvent.js";
-import * as listener from './Listener.js';
-import { OutlinePass } from 'https://cdn.skypack.dev/three@0.121.1/examples/jsm/postprocessing/OutlinePass.js';
-import { RenderPass  } from 'https://cdn.skypack.dev/three@0.121.1/examples/jsm/postprocessing/RenderPass.js';
-import { FXAAShader } from 'https://cdn.skypack.dev/three@0.121.1/examples/jsm/shaders/FXAAShader.js';
-import { EffectComposer } from 'https://cdn.skypack.dev/three@0.121.1/examples/jsm/postprocessing/EffectComposer.js';
-import { ShaderPass } from 'https://cdn.skypack.dev/three@0.121.1/examples/jsm/postprocessing/ShaderPass.js';
-
-
-let renderer, scene, camera;
-let plane;
-let outlinePass,composer,effectFXAA;
-let mouse = new THREE.Vector2();
-let raycaster=new THREE.Raycaster();;
-
-
-init();
-render();
-animate();
+import * as THREE from "./node_modules/three/build/three.module.js";
+import { GLTFLoader } from './node_modules/three/examples/jsm/loaders/GLTFLoader.js';
+import { DragControls } from './node_modules/three/examples/jsm/controls/DragControls.js';
+import { OrbitControls } from "https://cdn.skypack.dev/three@0.121.1/examples/jsm/controls/OrbitControls.js";
+import { MOUSE } from "./node_modules/three/build/three.module.js";
+import { Helper } from './helper/helper.js';
+import { Window_resize } from './helper/Window_resize.js';
+import * as Public_tool from './helper/public_tool.js';
+import * as Click_down from './helper/click_down.js';
+import { Upload_file } from './helper/upload_file.js';
+import { ViewCube } from "./ViewCube.js";
+let camera, scene, renderer;
+let controller;
+let group, controls;
+let objects = [];
+let loadedScene = null;
 
 
+const ViewerUI = {
+  fileInput: document.getElementById('avatar')
+}
 
 
-// 畫面初始化
-function init() {
+ //load GLTF
+ function loadModel(url) {
+	
+  if (loadedScene) {
+    scene.remove(loadedScene);
+    loadedScene = null;
+    loadedMeshes.length = 0;
+  }
+  const gltfLoad=new GLTFLoader;
+  gltfLoad.load(url, function (gltf){
+    
+    loadedScene = gltf.scene;
+    scene.add(gltf.scene); 
   
+    });
+}
+
+// ViewerUI.fileInput.addEventListener('click', function(evt) {
+//   let file = evt.target.files[0];
+//   console.log(123)
+//   if (file) {
+//   let reader = new FileReader();
+//   reader.onload = function(e) {
+//     loadModel(e.target.result);
+//   }
+//   reader.onerror = function(err) {
+//     ViewerUI.loaderInfo.innerHTML = 'Error reading file! See console for more info.';
+//     console.error(err);
+//   }
+//   reader.readAsDataURL(file);
+//   }
+// });
+function InitScene() {
+  //創建場景
   scene = new THREE.Scene();
 
-  // 相機設定
-  camera = new THREE.PerspectiveCamera(
-    75,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    1000
-  )
-  camera.position.set(30, 30, 8);
+  //設定背景顏色
+  scene.background = new THREE.Color(0xf0f0f0);
+
+}
+function CreateCamera() {
+  // camera = new THREE.OrthographicCamera(window.innerWidth/-2,window.innerWidth/2, window.innerHeight/2,window.innerHeight/-2, 1, 1000);
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000000);
+  camera.position.set(100, 200, 100);
   camera.lookAt(scene.position);
-
-  // 三軸座標輔助
-  let axes = new THREE.AxesHelper(20);
-  axes.name="test";
-  scene.add(axes)
-
- 
-  // 渲染器設定
-  renderer = new THREE.WebGLRenderer();
-  renderer.shadowMap.enabled = true;
+  scene.add(camera);
+}
+function InitRender() {
+  renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true,
+    logarithmicDepthBuffer: true,
+  });
   renderer.setSize(window.innerWidth, window.innerHeight);
-
-  scene.add( new THREE.AmbientLight( 0xaaaaaa, 0.2) );
-  
-
-  // 簡單的 spotlight 
-  let spotLight = new THREE.SpotLight(0xffffff);
-  spotLight.position.set(-40, 80, -10);
-  spotLight.castShadow=true;
-  spotLight.shadow.mapSize.width=2000;
-  spotLight.shadow.mapSize.height=2000;
-  scene.add(spotLight);
-  // let spotHelper = new THREE.SpotLightHelper(spotLight)
-  // scene.add(spotHelper)
-
-  
-
-  // 將渲染出來的畫面放到網頁上的 DOM
-  document.body.appendChild(renderer.domElement)
-  
-  createPlane();
-  mouseevent.setVariable(camera,scene);
-  
-  
- 
-  listener.setVariable(camera,scene);
-  document.addEventListener( 'keydown', e=>{listener.onKeyDown(e)});
-  document.addEventListener( 'keyup', e=>{listener.onKeyUp(e)});
-  document.addEventListener( 'mousewheel', e=>{listener.onWheel(e)});
-  document.addEventListener( 'mouseup', e=>{listener.onMouseUP(e)});
-  document.addEventListener( 'mousedown', e=>{listener.onMouseDown(e)});
-  document.addEventListener( 'mousemove', e=>{listener.onPointerMove(e)});
-  
- 
-  cube();
-
-  composer = new EffectComposer( renderer );
-  const renderPass = new RenderPass( scene, camera );
-	composer.addPass( renderPass );
-  outlinePass = new OutlinePass( new THREE.Vector2( window.innerWidth, window.innerHeight ), scene, camera,[cube]);
-  outlinePass.renderToScreen=true;
-  outlinePass.edgeStrength=3;
-  // outlinePass.usepatternTexture=true;
-  // outlinePass.visibleEdgeColor.set('yellow');
-
-  composer.addPass( outlinePass );
-
-  const textureLoader = new THREE.TextureLoader();
-				textureLoader.load( './texture/tri_pattern.jpg', function ( texture ) {
-					outlinePass.patternTexture = texture;
-					texture.wrapS = THREE.RepeatWrapping;
-					texture.wrapT = THREE.RepeatWrapping;
-        })
-
-
-  effectFXAA = new ShaderPass( FXAAShader );
-  effectFXAA.uniforms[ 'resolution' ].value.set( 1 / window.innerWidth, 1 / window.innerHeight );
-  composer.addPass( effectFXAA );
-  // renderer.domElement.style.touchAction = 'none';
-	renderer.domElement.addEventListener( 'pointermove', onPointerMove );
-  // composer.setSize( window.innerWidth, window.innerHeight );
-  
+  document.body.appendChild(renderer.domElement);
 }
-
-function animate() {
-  requestAnimationFrame(animate);
-
-  
-
-}
-
 function render() {
-    requestAnimationFrame(render);
-    renderer.setClearColor(0xeeeeee, 1.0);
-    renderer.render(scene, camera); 
-    
-    
+  requestAnimationFrame(render);
+  //渲染
+  renderer.render(scene, camera);
+  
+  // composer.render();
 }
 
-
-window.addEventListener('resize', function() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize( window.innerWidth, window.innerHeight );
-	
-	effectFXAA.uniforms[ 'resolution' ].value.set( 1 / window.innerWidth, 1 / window.innerHeight );
- length
-});
-
-   //簡單的地板
-function createPlane(){
-  const geometry = new THREE.PlaneGeometry( 800, 800 );
-  geometry.rotateX( - Math.PI / 2 );
-  plane = new THREE.Mesh( geometry, new THREE.MeshPhongMaterial( { color:0xaaaaaa,visible: true} ) );
-  plane.receiveShadow=true;
-  plane.name='plane';
-  scene.add( plane );
-  
-  // const gridHelper = new THREE.GridHelper( 1000, 20 );
-  // scene.add( gridHelper );
-
-  }
-
-  //建立方體
-function cube(){
-  const cube = new THREE.BoxGeometry(4, 4, 4);
-  const cubeMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
-  
-  const head = new THREE.Mesh(cube, cubeMaterial);
-  head.name="cube";
-  head.position.set(0, 6, 0);
-  head.castShadow=true;
-  head.receiveShadow=true;
-  
-  scene.add( head );
-
+function setControl() {
+  controller = new OrbitControls(camera, renderer.domElement);
+  controller.screenSpacePanning = true;
+  controller.mouseButtons = { LEFT: null, MIDDLE: MOUSE.PAN, RIGHT: null };
 }
+
+init();
+function init() {
+  InitScene();
+  CreateCamera();
+  InitRender();
+  setControl();
+  group = new THREE.Group();
+  scene.add(group);
+  let window_resize = new Window_resize(camera, renderer);
+  let helper = new Helper(scene, camera, renderer);
+  // let uploadfile = new Upload_file('fileInput', scene);
+  document.addEventListener('mousemove', event => { Public_tool.Get_MousePosition(event, camera, scene) });
+  document.addEventListener('click', event => { Public_tool.Get_MousePosition(event, camera, scene) });
+   controls = new DragControls([...objects], camera, renderer.domElement);
+  // controls.addEventListener('drag', render);
+  document.addEventListener('click',event=> {Click_down.InitDragControls(event,controls,scene)});
+  const gltfLoad = new GLTFLoader;
+  // gltfLoad.load('空.gltf', function (gltfScene) {
+  //   scene.add(gltfScene.scene);
+  // });
+  let viewCube = new ViewCube(camera, renderer, controller);
  
+  window.addEventListener( 'keydown',Click_down.onKeyDown );
+  window.addEventListener( 'keyup', Click_down.onKeyUp );
+  var input = document.getElementById( 'input' );
+	input.addEventListener( 'change', function( event ) {
+		
+		var file = this.files[ 0 ];
+		var reader = new FileReader();
+		
+		reader.addEventListener( 'load', function ( event ) {
 
-function onPointerMove( event ) {
+			var contents = event.target.result;
 
-  // if ( event.isPrimary === false ) return;
+			var geometry = new STLLoader().parse( contents );
+			var material = new THREE.MeshStandardMaterial();
+			var mesh = new THREE.Mesh( geometry, material );
+			
+			mesh.castShadow = true;
+			mesh.receiveShadow = true;
+			
+			scene.add( mesh );
 
-  mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-  mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+		}, false );
+		
+		if ( reader.readAsBinaryString !== undefined ) {
 
-  checkIntersection();
-  composer.render();
+			reader.readAsBinaryString( file );
 
+		} else {
 
-}
+			reader.readAsArrayBuffer( file );
 
-let selectedObjects = [];
-function addSelectedObject( object ) {
+		}
+		
+	} );
 
-  selectedObjects = [];
-  selectedObjects.push( object );
-
-}
-
-function checkIntersection() {
-
-  raycaster.setFromCamera( mouse, camera );
-
-  const intersects = raycaster.intersectObject( scene, true );
-  for (var i=0; i < intersects.length ; i++){
-    console.log(intersects[i].object.name);
-  }
   
-  if ( intersects.length >1) {
-    const selectedObject = intersects[ 0 ].object;
-    addSelectedObject( selectedObject);
-    outlinePass.selectedObjects=selectedObjects;
-    
-    
-
-  } else {
-
-     //linePass.selectedObjects = [];
-
-  }
-
+  render();
 }
-
